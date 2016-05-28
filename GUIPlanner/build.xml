@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<project name="GUIPlanner" default="deploy" basedir=".">
+
+	
+	
+<!-- Properties ............................................................ -->
+    <property environment="env"/>
+	<property name="java_home" 			value="${env.JAVA_HOME}" />
+	<property name="tomcat_home" 		value="${env.tomcat_home}" />
+    <property name="webApp"         	value="${tomcat_home}/webapps/guiplanner" />
+    <property name="version"        	value="1.0.0" />
+    <property name="release"        	value="r1" />
+    <property name="src"            	value="src" />
+    <property name="build"          	value="lib" />
+    <property name="web"            	value="web" />
+    <property name="extLib"         	value="lib-ext" />
+    <property name="jar"            	value="gui_planner_${version}-${release}.jar" />
+    <property name="docs_api"       	value="${docs}/api" />
+    <property name="docs_examples"     	value="${docs}/examples" />
+    <property name="classpath"      	value="${extLib}/derby.jar;
+    										   ${extLib}/servlet-api.jar;
+    										   ${extLib}/log4j-1.2.16.jar;
+    										   ${extLib}/jsp-api.jar"/>
+
+	<echo message="Tomcat home: ${tomcat_home}"/>	
+	<echo message="Java home: ${java_home}"/>
+	<echo message="Classpath: ${classpath}"/>
+	
+<!-- Initialization ........................................................ -->
+    <target name="init">
+        <mkdir dir="${build}" />
+        <tstamp/>
+    </target>
+
+<!-- Cleaning .............................................................. -->
+    <target name="clean">
+        <delete dir="${build}" quiet="true" />
+    </target>
+
+
+	
+<!-- Compilation ........................................................... -->
+    <target name="compile" depends="clean, init">
+        <javac fork="yes" executable="${java_home}/bin/javac"
+        	   classpath="${classpath}"
+               srcdir="${src}"
+               destdir="${build}"
+               deprecation="on"
+               debug="true">
+            <include name="**/*.java" />
+        </javac>
+    	<copy todir="${build}" file="${extLib}/Configuration.properties"/>
+    	<delete failonerror="false" file="${jar}"/>
+    	<jar destfile="${jar}"
+             basedir="${build}"
+             includes="marten/**,*.properties"/>
+        <delete failonerror="no">
+            <fileset dir="${build}"/>
+		</delete>
+    </target>
+
+	
+<!-- Distribute both web and class files ................................... -->
+    <target name="deploy" depends="compile">
+        <delete failonerror="no">
+            <fileset dir="${webApp}/WEB-INF/classes" />
+        </delete>
+        <copy todir="${webApp}">
+            <fileset dir="${web}"/>
+        </copy>
+        <delete failonerror="no">
+            <fileset dir="${webApp}/WEB-INF/lib" includes="**/eppsus_core_*.jar"/>
+		</delete>
+        <move todir="${webApp}/WEB-INF/lib" file="${jar}" />
+    	<copy todir="${webApp}/WEB-INF/lib" file="${extLib}/Log4J.properties"/>
+    	<copy todir="${webApp}/WEB-INF/lib" file="${extLib}/derby.jar"/>
+    	<copy todir="${webApp}/WEB-INF/lib" file="${extLib}/log4j-1.2.16.jar"/>
+		<copy todir="${webApp}/WEB-INF/lib" file="${extLib}/log4j.xml"/>
+    	<copy todir="${webApp}/WEB-INF" file="WEB-INF/web.xml"/>
+    </target>
+
+
+<!-- Distribute web files .................................................. -->
+    <target name="deployWeb">
+        <copy todir="${webApp}">
+            <fileset dir="${web}">
+                <exclude name="**/CVS/**" />
+            </fileset>
+        </copy>
+    </target>
+	
+<!-- Distribute develop files .............................................. -->
+    <target name="deployDev">
+        <delete failonerror="no">
+            <fileset dir="${webApp}/WEB-INF/lib" includes="**/gui_planner_*.jar"/>
+        </delete>
+        <copy todir="${webApp}">
+            <fileset dir="${web}">
+                <exclude name="**/CVS/**" />
+            </fileset>
+        </copy>
+        <copy todir="${webApp}/WEB-INF/classes">
+            <fileset dir="${build}" />
+        </copy>
+    </target>
+    
+<!-- Package the current build into a zip-file with the specified version .. -->
+    <target name="package" depends="deploy">
+        <mkdir dir="versioner/${version}" />
+    	<mkdir dir="${webApp}/client"/>
+    	<!-- copy all client downloadable files to the client dir-->
+        <zip destfile="versioner/${version}/gui_planner_webapp_${version}-${release}.zip"
+             basedir="${webApp}" />
+        <zip destfile="versioner/${version}/gui_planner_${version}-${release}.zip"
+             basedir="${src}" />
+    	<copy todir="versioner/${version}/" file="${webApp}/WEB-INF/lib/${jar}"/>
+    </target>
+
+	<target name="tomcat-start">
+        <java jar="${tomcat_home}/bin/bootstrap.jar" fork="true">
+            <jvmarg value="-Dcatalina.home=${tomcat_home}"/>
+        </java>
+    </target>
+
+    <target name="tomcat-stop">
+        <java jar="${tomcat_home}/bin/bootstrap.jar" fork="true">
+            <jvmarg value="-Dcatalina.home=${tomcat_home}"/>
+            <arg line="stop"/>
+        </java>
+    </target>
+
+    <target name="tomcat-start-debug">
+        <java jar="${tomcat_home}/bin/bootstrap.jar" fork="true">
+            <jvmarg value="-Dcatalina.home=${tomcat_home}"/>
+            <jvmarg value="-Xdebug"/>
+            <jvmarg value="-Xrunjdwp:transport=dt_socket,address=5005,server=y,suspend=n"/>
+        </java>
+    </target>
+</project>
